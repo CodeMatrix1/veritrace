@@ -178,13 +178,14 @@ function showReport(audit, state) {
   // Claims with no evidence get fixed wording, so nothing here is AI-written.
   const aiWritten = report.claims.some((claim) => claim.evidence.some((item) => item.used_in_verdict));
   if (aiWritten && report.summary_label) nodes.push(element("p", report.summary_label, "muted"));
-  nodes.push(runAgainButton(audit.input_text));
+  nodes.push(runAgainButton(audit.input_text), homeButton());
   show(...nodes);
 }
 
 function showError(message, text) {
   const nodes = [element("p", message, "error")];
   if (text && text.length >= MIN_CHARS && text.length <= MAX_CHARS) nodes.push(runAgainButton(text));
+  nodes.push(homeButton());
   show(...nodes);
 }
 
@@ -231,8 +232,24 @@ function showProgress(audit) {
   show(...nodes);
 }
 
+function homeButton() {
+  const button = element("button", "New check", "quiet");
+  button.addEventListener("click", async () => {
+    await chrome.storage.session.remove("current");
+    await chrome.action.setBadgeText({ text: "" });
+    render(null);
+  });
+  return button;
+}
+
 function showCancelled(text) {
-  show(badge("cancelled"), element("h2", "Check cancelled"), element("p", text, "quote"), runAgainButton(text));
+  show(
+    badge("cancelled"),
+    element("h2", "Check cancelled"),
+    element("p", text, "quote"),
+    runAgainButton(text),
+    homeButton(),
+  );
 }
 
 async function loadAudit(id, state) {

@@ -1,5 +1,7 @@
 # Running Veritrace
 
+To try Veritrace without installing anything, open the live website: https://veritrace-iota.vercel.app
+
 These steps run the backend, website and Chrome extension on your own computer. Commands are for PowerShell on Windows, from the `veritrace` folder.
 
 ## 1. What You Need
@@ -69,7 +71,7 @@ Set-Content .env.local "NEXT_PUBLIC_API_URL=http://127.0.0.1:7860"
 npm run dev
 ```
 
-Open `http://localhost:3000`. Use `localhost`, not `127.0.0.1`, so the extension can sync your audit list.
+Open `http://localhost:3000`.
 
 Don't run `npm run build` while `npm run dev` is running, because it breaks the dev server.
 
@@ -80,6 +82,8 @@ Don't run `npm run build` while `npm run dev` is running, because it breaks the 
 3. Click **Load unpacked**, and select the `extension` folder.
 4. Pin Veritrace to the toolbar.
 5. Select text on any page, right-click it, and choose **Verify with Veritrace**.
+
+This version uses the live website and backend. To use your local ones, see [Deployed Setup](#deployed-setup).
 
 After changing extension files, click the reload icon on its card.
 
@@ -136,11 +140,24 @@ $env:TEST_DATABASE_URL = "postgresql://postgres:your_password@localhost:5432/ver
 | The website shows an old error or a missing field | The backend has old code | Restart the backend |
 | `Cannot find module` errors from `.next` | `npm run build` ran during `npm run dev` | Stop the dev server, delete `frontend/.next`, and start it again |
 | "Your file couldn't be accessed" in the extension | Chrome has an old version | Reload it on `chrome://extensions` |
-| Your audit list is empty | Audits are saved per browser and address | Use `http://localhost:3000`, with the extension installed |
+| Your audit list is empty | Audits are saved per browser and address | Use the same address and browser where you ran them |
 | "The daily audit limit has been reached" | The limit is used up | Reset it, or raise `DAILY_AUDIT_LIMIT` |
 | Nothing to check | The text has no clear factual claim | Select a complete sentence that names its subject |
+| "This audit is no longer available" | The audit is on another database, or is over 30 days old | Open it where it was run, or run the check again |
 
 ## Deployed Setup
+
+Veritrace is live on these hosts:
+
+| Part | Host | Address |
+|---|---|---|
+| Website | Vercel | https://veritrace-iota.vercel.app |
+| Backend | Render | https://veritrace-kgjt.onrender.com |
+| Database | Neon | Private |
+
+Check the backend at https://veritrace-kgjt.onrender.com/api/health.
+
+The extension in this repository points to these addresses. To use it with a backend on your own computer, change the addresses listed below back to your local ones.
 
 The website, backend and database can run on separate hosts. The backend must run as a single always-on process, not as serverless functions.
 

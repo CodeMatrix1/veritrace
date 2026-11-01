@@ -4,6 +4,15 @@ Veritrace checks public claims about India against evidence, and helps citizens 
 
 It was built for Theme 1, Civic Pulse: Digital Governance & Public Information.
 
+## Live Links
+
+- **Website:** https://veritrace-iota.vercel.app
+- **Chrome extension:** [Download and install](https://github.com/CodeMatrix1/veritrace/releases/latest)
+- **Backend health check:** https://veritrace-kgjt.onrender.com/api/health
+- **Source code:** https://github.com/CodeMatrix1/veritrace
+
+The backend can take a moment to respond after it has been idle.
+
 ## The Problem
 
 False claims about schemes, rules and statistics spread faster than people can check them, and official information is often hard to find or understand. A chatbot alone isn't enough, because it can sound certain while being wrong.
