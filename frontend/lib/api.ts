@@ -95,12 +95,21 @@ export type TraceEvent = {
   message: string | null;
 };
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const detail = typeof body?.detail === "string" ? body.detail : "Please check your input.";
-    throw new Error(detail);
+    throw new ApiError(detail, response.status);
   }
   return response.json();
 }

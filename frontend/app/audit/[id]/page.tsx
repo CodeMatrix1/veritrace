@@ -11,6 +11,7 @@ import LiveTrace from "@/components/LiveTrace";
 import SourceHistory from "@/components/SourceHistory";
 import VerdictBadge from "@/components/VerdictBadge";
 import {
+  ApiError,
   cancelAudit,
   createAudit,
   getAudit,
@@ -30,6 +31,7 @@ import {
 
 const POLL_MS = 2000;
 const FINISHED = new Set(["completed", "failed", "cancelled"]);
+const EXPIRED = "This audit is no longer available. Audits are kept for 30 days.";
 
 export default function AuditPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,8 +62,13 @@ export default function AuditPage() {
           result: latest.status === "completed" ? latest.overall_result : latest.status,
         });
         if (batch.finished && batch.events.length === 0) return;
-      } catch {
-        if (active) setError("Reconnecting to the verification service...");
+      } catch (caught) {
+        if (!active) return;
+        if (caught instanceof ApiError && caught.status === 404) {
+          setError(EXPIRED);
+          return;
+        }
+        setError("Reconnecting to the verification service...");
       }
       if (active) timer = setTimeout(poll, POLL_MS);
     }

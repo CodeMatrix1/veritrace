@@ -12,9 +12,9 @@
     "sidePanel",
     "notifications"
   ],
-  "host_permissions": ["http://127.0.0.1:7860/*"],
+  "host_permissions": ["https://veritrace-kgjt.onrender.com/*"],
   "background": { "service_worker": "background.js" },
-  "content_scripts": [{ "matches": ["http://localhost:3000/*"], "js": ["sync.js"] }],
+  "content_scripts": [{ "matches": ["https://veritrace-iota.vercel.app/*"], "js": ["sync.js"] }],
   "side_panel": { "default_path": "panel.html" },
   "action": {
     "default_title": "Open Veritrace",
