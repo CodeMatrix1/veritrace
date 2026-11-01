@@ -1,0 +1,1 @@
+CREATE TABLE limit_resets (reset_at TIMESTAMPTZ PRIMARY KEY DEFAULT now());

@@ -1,0 +1,10 @@
+version: "3"
+official_record:
+  primary_required: false
+  minimum_independent_sources: 2
+scientific:
+  primary_required: false
+  minimum_independent_sources: 2
+reported_event:
+  primary_required: false
+  minimum_independent_sources: 2

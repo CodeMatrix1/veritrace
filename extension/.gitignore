@@ -1,0 +1,9 @@
+# Packaged builds, attached to a GitHub Release instead
+*.zip
+*.crx
+
+# Private key from packing an extension
+*.pem
+
+# Local config copies, which can hold personal URLs
+config.local.js

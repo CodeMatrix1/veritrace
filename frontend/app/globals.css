@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgb(34 211 238 / 0.16), transparent),
+    radial-gradient(900px 500px at 90% 0%, rgb(129 140 248 / 0.18), transparent),
+    #090d16;
+  background-attachment: fixed;
+  color: #e2e8f0;
+}
+
+.card {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.9rem;
+  background: rgb(255 255 255 / 0.04);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.hero-title {
+  background: linear-gradient(100deg, #fff 20%, #67e8f9 60%, #a5b4fc);
+  background-clip: text;
+  color: transparent;
+  line-height: 1.15;
+  padding-bottom: 0.1em;
+}
+
+.logo-mark {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 0.4rem;
+  background: linear-gradient(135deg, #22d3ee, #818cf8);
+  box-shadow: 0 0 16px rgb(34 211 238 / 0.6);
+}
+
+.primary-button {
+  border-radius: 0.6rem;
+  background: linear-gradient(100deg, #22d3ee, #818cf8);
+  padding: 0.6rem 1.2rem;
+  color: #06121f;
+  font-weight: 600;
+  transition: filter 0.15s, transform 0.15s;
+}
+
+.primary-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.primary-button:disabled {
+  opacity: 0.4;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: 0.6rem;
+  background: rgb(0 0 0 / 0.25);
+  padding: 0.75rem;
+  color: #f1f5f9;
+  outline: none;
+}
+
+.field:focus {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgb(34 211 238 / 0.2);
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #22d3ee, #818cf8, #22d3ee);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.verdict-good {
+  border-top: 3px solid #34d399;
+  box-shadow: 0 -8px 50px rgb(52 211 153 / 0.14);
+}
+
+.verdict-bad {
+  border-top: 3px solid #f87171;
+  box-shadow: 0 -8px 50px rgb(248 113 113 / 0.14);
+}
+
+.verdict-warn {
+  border-top: 3px solid #fbbf24;
+  box-shadow: 0 -8px 50px rgb(251 191 36 / 0.12);
+}
+
+.verdict-stop {
+  border-top: 3px solid #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar {
+    animation: none;
+  }
+}

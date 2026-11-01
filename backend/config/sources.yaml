@@ -1,0 +1,30 @@
+version: "4"
+# Hosts steer official searches, and name official bodies without an official address.
+authority:
+  - hosts: ["gov.in", "nic.in"]
+    claim_domains: [government_policy, elections, health, finance, disaster, weather]
+  - hosts: ["eci.gov.in", "mohfw.gov.in", "rbi.org.in", "mospi.gov.in"]
+    claim_domains: [government_policy, elections, health, finance]
+  - hosts: ["who.int"]
+    claim_domains: [health, science]
+  - hosts: ["isro.gov.in"]
+    claim_domains: [science, general_news, government_policy]
+  - hosts: ["usgs.gov", "imd.gov.in", "ndma.gov.in"]
+    claim_domains: [disaster, weather]
+  - hosts: ["pubmed.ncbi.nlm.nih.gov"]
+    claim_domains: [science, health]
+# News outlets on government domains report events, but don't originate them.
+not_primary:
+  - ddnews.gov.in
+blocked:
+  - pinterest.com
+  - facebook.com
+  - instagram.com
+  - tiktok.com
+  - youtube.com
+  - reddit.com
+  - x.com
+  - twitter.com
+  - linkedin.com
+  - threads.net
+  - t.me

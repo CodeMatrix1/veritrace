@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Veritrace",
+  "version": "0.4.0",
+  "description": "Check selected text against sources with Veritrace.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "alarms",
+    "activeTab",
+    "sidePanel",
+    "notifications"
+  ],
+  "host_permissions": ["http://127.0.0.1:7860/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{ "matches": ["http://localhost:3000/*"], "js": ["sync.js"] }],
+  "side_panel": { "default_path": "panel.html" },
+  "action": {
+    "default_title": "Open Veritrace",
+    "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+}
