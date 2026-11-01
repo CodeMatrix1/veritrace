@@ -8,7 +8,7 @@ const TOPICS = [
   { title: "Schemes", question: "Who qualifies for PM-KISAN?" },
   { title: "Policies", question: "What is the RBI's inflation target?" },
   { title: "Rights & services", question: "How do I file an RTI application?" },
-  { title: "Public data", question: "How many Jan Dhan accounts are there?" },
+  { title: "Business", question: "What licences are needed to start a new company?" },
 ];
 const MODES: Record<string, string> = {
   saved: "From saved official pages",

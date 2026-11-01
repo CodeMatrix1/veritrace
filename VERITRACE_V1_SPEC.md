@@ -17,7 +17,7 @@ Veritrace is a text-only web app with a Chrome extension and a government inform
 | Status | Features |
 |---|---|
 | **Must have** | Text and URL input, claim extraction, Tavily search, support and contradiction searches, evidence classification, citation validation, sufficiency check, one gap round, rule-based verdicts, plain answers, live trace, Evidence Ledger, saved audit state, saved reports, SSRF protection |
-| **Built, optional** | Skeptic review (off by default, `ENABLE_SKEPTIC`), Fact Check Tools adapter (runs only with `FACT_CHECK_API_KEY`), Source History (on by default, `ENABLE_SOURCE_HISTORY`), Chrome extension (`extension/`, installed with Load unpacked), government information assistant (`/chat`, and the extension's Ask tab) |
+| **Built, optional** | Skeptic review (off by default, `ENABLE_SKEPTIC`), Fact Check Tools adapter (runs only with `FACT_CHECK_API_KEY`), Source History (on by default, `ENABLE_SOURCE_HISTORY`), Chrome extension (`extension/`, installed with Load unpacked), government information assistant (`/chat`, website only) |
 | **Excluded** | Live feeds, images, video, audio, deepfake detection, knowledge graphs, vector search, embeddings, reranking, LangGraph, Redis, near-duplicate detection, multiple LLM providers, user accounts, server-side audit history, audit resume, PDF upload, translation |
 
 ### 1.2 Cut order
@@ -75,7 +75,7 @@ API → asyncio queue → Orchestrator
 
 | Item | Limit |
 |---|---|
-| Input text | 20,000 characters |
+| Input text | 12,000 characters |
 | Investigated claims per audit | 3 |
 | Initial searches per claim | 4 |
 | Gap rounds per claim | 1 |
@@ -231,7 +231,7 @@ Steps 4–15 run for each factual claim, one claim at a time. The support and co
 ```python
 class AuditInput(BaseModel):
     type: Literal["text", "url"]
-    content: str = Field(min_length=3, max_length=20000)
+    content: str = Field(min_length=3, max_length=12000)
     fresh: bool = False  # Search again, even if this text was checked recently
     context: PageContext | None = None
 
@@ -958,7 +958,7 @@ Apply these rules in order, and stop at the first match:
 | 2 | `R1_CONFLICT` | Strong evidence on both sides, unresolved by dates, definitions or revisions | Unverified: conflicting |
 | 3 | `R2_CONTRADICTED` | Strong evidence disproves the claim | Contradicted |
 | 4 | `R3_MISLEADING` | An official source supports the fact but is `contextual` for `time_differs`, `scope_differs` or `skeptic_missing_qualification`, and no valid official source supports it | Misleading |
-| 5 | `R4_SUPPORTED` | Strong support, all key details answered, no valid contradicting evidence | Supported |
+| 5 | `R4_SUPPORTED` | Strong support, all key details answered, and no valid contradicting evidence, unless official support outranks a contradiction that isn't strong, which caps confidence at Medium | Supported |
 | 6 | `R5_INSUFFICIENT` | Anything else | Unverified: insufficient |
 
 **Source precedence:**
@@ -1414,7 +1414,7 @@ CREATE INDEX idx_tool_cache_expires ON tool_cache (expires_at);
 {"audit_id": "uuid", "status": "queued"}
 ```
 
-**Status response:** `GET /api/audits/{id}` also returns `input_type`, `input_text`, `claims`, `source_page`, `created_at`, `elapsed_seconds` and `estimate_seconds`. The estimate is the median time per claim of the last 20 audits that ran in full, multiplied by the number of claims found, or 60 seconds per claim if there are none. It stays between 20 and 600 seconds.
+**Status response:** `GET /api/audits/{id}` also returns `input_type`, `input_text`, `claims`, `source_page`, `created_at`, `elapsed_seconds` and `estimate_seconds`. The estimate is 90 seconds per claim found, starting at one claim.
 
 **Report shape:**
 
@@ -1460,7 +1460,7 @@ CREATE INDEX idx_tool_cache_expires ON tool_cache (expires_at);
 
 | Page | Requirements |
 |---|---|
-| `/` | Text and URL input, a Search again checkbox, input limits, remaining daily audits, clear error messages, recent audits |
+| `/` | Text input, a Search again checkbox, input limits, remaining daily audits, clear error messages, recent audits |
 | `/chat` | Government information assistant: schemes, policies, rights, services and public data, with structured answers, official sources, and questions about one linked page. It is not a fact-check or legal advice |
 | `/audits` | Audits from this browser and the extension, kept in `localStorage`, because the API never lists audits |
 | `/audit/[id]` | Exact text, claims, time left and Cancel while running, then plain answer, claim cards, Evidence Ledger, Source History, and Check again if it did not finish |

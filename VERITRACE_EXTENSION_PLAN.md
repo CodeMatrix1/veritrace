@@ -14,14 +14,14 @@
 4. The audit runs on the server, so it continues if the panel closes.
 5. One answer covering every claim appears in the panel, with the strongest evidence, and a second notification gives the result.
 6. Reports open on the website in a new tab. **View all audits** is always available, and recent audits open the same way, without a new check.
-7. The Ask tab explains government schemes, policies, rights and public data from official sources, using `POST /api/chat`.
+7. The Ask assistant is on the website only. The panel explains what Veritrace does, and links to the website.
 
 ## 2. Design
 
 | Part | Job |
 |---|---|
 | `background.js` | Menu item, opens the panel, submits text, sends notifications, cancels, keeps history, and polls every 30 seconds to set the badge |
-| `panel.js` | Shows progress, a short answer, the Ask tab and history, and polls every 2 seconds while open |
+| `panel.js` | Shows progress, a short answer and history, and polls every 2 seconds while open |
 | `sync.js` | Runs on the Veritrace website, and keeps the website's and extension's audit lists the same |
 | `config.js` | API and website URLs |
 
@@ -33,7 +33,7 @@
 - **CORS:** No backend change was needed. A real `POST` from the extension to the local backend succeeded.
 - **History:** Kept in `chrome.storage.local`, up to 100 audits. The API still has no way to list audits, so one person can't see another's. `sync.js` runs only on the Veritrace website, and merges the extension's list with the website's `localStorage` list. It sends nothing to the server.
 - **Cancel:** `POST /api/audits/{id}/cancel` marks the audit cancelled straight away. Work already in progress finishes, and the worker stops at its next step.
-- **Time estimate:** The median time per claim of the last 20 full audits, multiplied by the claims found. It stays between 20 seconds and 10 minutes.
+- **Time estimate:** 90 seconds per claim found, starting at one claim.
 
 ## 3. What Was Tested
 
@@ -44,7 +44,7 @@ Tested in headless Edge with the extension loaded, using a mock API with invente
 - Every verdict type, in the report and the side panel
 - Running, failed, daily limit, unexpected reply, too-short text and retry states
 - Panel layout, toolbar badge, and collapsed investigation details
-- Audit list sync, removing single audits, new-tab links, and the Ask tab
+- Audit list sync, removing single audits, and new-tab links
 
 Tested in Edge against the real local backend, using a saved report, so no search credits were spent:
 

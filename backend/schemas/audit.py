@@ -22,7 +22,7 @@ class PageContext(BaseModel):
 
 class AuditInput(BaseModel):
     type: Literal["text", "url"]
-    content: str = Field(min_length=3, max_length=20000)
+    content: str = Field(min_length=3, max_length=12000)
     fresh: bool = False  # Search again, even if this text was checked recently
     context: PageContext | None = None
 

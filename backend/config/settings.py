@@ -16,7 +16,7 @@ class Settings:
     fact_check_api_key: str = ""
     database_url: str = ""
     frontend_origin: str = "http://localhost:3000"
-    daily_audit_limit: int = 10
+    daily_audit_limit: int = 25
     tavily_monthly_credits: int = 1000
     tavily_credit_reserve: int = 300
     tavily_credits_per_search: float = 1.0
@@ -30,8 +30,9 @@ class Settings:
         return MAX_TAVILY_ATTEMPTS_PER_AUDIT * self.tavily_credits_per_search
 
 
-MAX_INPUT_CHARS = 20_000
+MAX_INPUT_CHARS = 12_000
 MAX_CLAIMS = 3
+PER_VISITOR_HOURLY_LIMIT = 30
 MAX_TAVILY_ATTEMPTS_PER_AUDIT = 18
 RESULTS_PER_SEARCH = 8
 MAX_DOCUMENTS_PER_CLAIM = 5
@@ -46,7 +47,7 @@ MAX_PDF_PAGES = 50
 MAX_CONCURRENT_AUDITS = 3
 MAX_GAP_QUERIES = 2
 MAX_QUERY_WORDS = 20
-CHAT_SEARCH_DAILY_LIMIT = 50
+CHAT_SEARCH_DAILY_LIMIT = 200
 RETENTION_DAYS = 30
 
 
@@ -59,7 +60,7 @@ def load_settings() -> Settings:
         fact_check_api_key=os.environ.get("FACT_CHECK_API_KEY", ""),
         database_url=os.environ.get("DATABASE_URL", ""),
         frontend_origin=os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000"),
-        daily_audit_limit=int(os.environ.get("DAILY_AUDIT_LIMIT", "10")),
+        daily_audit_limit=int(os.environ.get("DAILY_AUDIT_LIMIT", "25")),
         tavily_monthly_credits=int(os.environ.get("TAVILY_MONTHLY_CREDITS", "1000")),
         tavily_credit_reserve=int(os.environ.get("TAVILY_CREDIT_RESERVE", "300")),
         tavily_credits_per_search=float(os.environ.get("TAVILY_CREDITS_PER_SEARCH", "1")),

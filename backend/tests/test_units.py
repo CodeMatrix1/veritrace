@@ -712,12 +712,6 @@ def test_one_publisher_is_not_enough_for_event():
     assert decide(verdict_input([ev()], rule="reported_event")).rule_id == "R5_INSUFFICIENT"
 
 
-def test_weak_contradiction_blocks_supported():
-    items = [ev("e1", "d1"), ev("e2", "d2", stance="contradicts")]
-    result = decide(verdict_input(items, tiers={"d1": "primary"}))
-    assert result.verdict == "unverified_insufficient"
-
-
 def test_skeptic_failure_caps_confidence():
     items = [ev(number_match="exact")]
     result = decide(verdict_input(items, tiers={"d1": "primary"}, skeptic_failed=True))
@@ -908,3 +902,52 @@ def test_real_number_conflicts_are_still_caught(details, quote, listed, expected
 def test_bare_number_only_clashes_with_a_similar_figure():
     assert number_case(["aged 70"], "A cover of 5 lakh.", ["5 lakh"])[0] is None
     assert number_case(["aged 70"], "Citizens aged 65 qualify.", ["65"])[0] == "number_mismatch"
+
+
+@pytest.mark.parametrize("claim_text,quote,hedged", [
+    ("The RBI launched polymer notes.", "The RBI is likely to launch polymer notes.", True),
+    ("The RBI launched polymer notes.", "The RBI launched polymer notes in April.", False),
+    ("The RBI may launch polymer notes.", "The RBI is likely to launch polymer notes.", False),
+])
+def test_hedged_source_cannot_confirm_a_firm_claim(claim_text, quote, hedged):
+    from components.evidence_validator import hedged_support
+    from schemas.claim import AtomicClaim
+    from schemas.evidence import Evidence
+
+    a_claim = AtomicClaim(id="c", position=1, text=claim_text, source_text="x", kind="factual")
+    evidence = Evidence(
+        id="e", claim_id="c", document_id="d", sentence_ids=["s"], text=quote,
+        stance="supports", reason="r",
+    )
+    assert hedged_support(a_claim, evidence) is hedged
+
+
+def test_one_visitor_is_limited_and_others_are_not():
+    from types import SimpleNamespace
+
+    from fastapi import HTTPException
+
+    import api.routes as routes
+
+    def visitor(address):
+        return SimpleNamespace(headers={"x-forwarded-for": address}, client=None)
+
+    routes.visitors.clear()
+    for _ in range(routes.PER_VISITOR_HOURLY_LIMIT):
+        routes.check_visitor(visitor("1.1.1.1"))
+    with pytest.raises(HTTPException):
+        routes.check_visitor(visitor("1.1.1.1"))
+    routes.check_visitor(visitor("2.2.2.2"))
+    routes.visitors.clear()
+
+
+def test_official_support_outranks_a_lone_unofficial_contradiction():
+    items = [ev("e1", "d1"), ev("e2", "d2", stance="contradicts")]
+    result = decide(verdict_input(items, tiers={"d1": "primary"}))
+    assert (result.verdict, result.confidence) == ("supported", "medium")
+
+
+def test_unofficial_support_still_stops_at_a_contradiction():
+    items = [ev("e1", "d1"), ev("e2", "d2"), ev("e3", "d3", stance="contradicts")]
+    result = decide(verdict_input(items, rule="reported_event"))
+    assert result.verdict == "unverified_insufficient"

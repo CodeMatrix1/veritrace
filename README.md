@@ -14,7 +14,7 @@ Veritrace keeps the AI's role small and checkable. The AI reads and explains. Py
 
 **Check a claim**
 
-- Accepts pasted text, a URL, or text selected in the Chrome extension.
+- Accepts pasted text, or text selected in the Chrome extension.
 - Finds up to 3 factual claims, including yes/no questions, and skips opinions and predictions.
 - Searches official sources and the open web, for support and for contradiction.
 - Builds quotes from the saved page text, so the AI can't invent one.
@@ -31,7 +31,7 @@ Veritrace keeps the AI's role small and checkable. The AI reads and explains. Py
 **Chrome extension**
 
 - Right-click selected text to check it, with progress and the answer in a side panel.
-- Includes the Ask assistant, a list of past audits, and links to full reports.
+- Includes a list of past audits, links to full reports, and a link to the website.
 
 ## Architecture
 
@@ -176,7 +176,7 @@ Source rules, claim handling and verdict logic have changed since that test, so 
 **Accuracy**
 
 - Two publishers aren't proof of independent reporting, because copied stories aren't always detected. Related sites can count separately.
-- A claim stated as "likely" in a source can still count as support.
+- Hedged sources such as "likely to" can't confirm a firm claim, but this keyword check can also set aside a sound source that uses such a word.
 - Python confirms that a figure appears in a source, not that a sentence uses it correctly. AI-written answers can still misread a source.
 - Keyword checks on dates, places and scope can miss subtle mismatches.
 - "Yesterday" is resolved from today's date, so it can be wrong for older posts.
@@ -187,7 +187,8 @@ Source rules, claim handling and verdict logic have changed since that test, so 
 
 - Audits can take a few minutes, and depend on Groq and Tavily being available.
 - Free Groq limits are low, and all users share them. The backup model's accuracy hasn't been measured.
-- One person can use the whole daily limit. Failed checks don't count towards it, but they still use AI and search credits.
+- Each address is limited to 30 requests an hour, held in memory, so people sharing a network share that limit. Failed checks don't count towards the daily limit, but they still use AI and search credits.
+- Input is limited to 12,000 characters, and only the first 12,000 characters of a URL page are read for claims.
 - Audit links work for anyone who has them, so don't submit confidential text.
 - Interrupted audits must be resubmitted. Only one backend worker is supported, because the queue is in memory.
 - Cached search results are kept long-term for stable claims. Use Search again to refresh them.

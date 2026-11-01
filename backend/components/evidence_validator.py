@@ -17,6 +17,11 @@ LIMITING = re.compile(
     r"income below|families with)\b",
     re.IGNORECASE,
 )
+HEDGED = re.compile(
+    r"\b(likely to|expected to|may|might|could|reportedly|proposed|proposes|draft|planned|"
+    r"plans to|set to|considering|rumou?red|sources said)\b",
+    re.IGNORECASE,
+)
 PUBMED_REVIEW = re.compile(
     r"\b(systematic review|meta-analysis|review article|narrative review)\b", re.IGNORECASE
 )
@@ -44,6 +49,15 @@ def scope_mismatch(claim: AtomicClaim, evidence: Evidence) -> bool:
         evidence.stance == "supports"
         and bool(UNIVERSAL.search(claim.text))
         and bool(LIMITING.search(evidence.text))
+    )
+
+
+def hedged_support(claim: AtomicClaim, evidence: Evidence) -> bool:
+    """A source saying something is likely can't confirm that it happened."""
+    return (
+        evidence.stance == "supports"
+        and bool(HEDGED.search(evidence.text))
+        and not HEDGED.search(claim.text)
     )
 
 
@@ -181,6 +195,8 @@ def validate_item(
         return result("contextual", "time_differs")
     if scope_mismatch(claim, evidence):
         return result("contextual", "scope_differs")
+    if hedged_support(claim, evidence):
+        return result("contextual", "hedged_source")
     number_reason = check_numbers(claim, evidence)
     if number_reason:
         return result("contextual", number_reason)

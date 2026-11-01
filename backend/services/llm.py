@@ -13,19 +13,37 @@ T = TypeVar("T", bound=BaseModel)
 
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
 MAX_COMPLETION_TOKENS = 4096
+# Groq counts this reservation against its per-minute limit, so short replies reserve less.
+REPLY_TOKENS = {
+    "chat": 1500,
+    "chat_rewrite": 400,
+    "summary": 1500,
+    "claim_classification": 1000,
+    "query_planning": 600,
+    "gap_queries": 600,
+}
 TRANSIENT_RETRIES = 3
 MAX_RETRY_WAIT_SECONDS = 60.0
 DROPPED_KEYWORDS = {"title", "description", "default", "minItems", "maxItems"}
 
 
+DAY_LIMIT_MESSAGE = "The AI has reached its daily limit. Please try again in one day."
+MINUTE_LIMIT_MESSAGE = "The AI has reached its per-minute limit. Please try again in one minute."
+
+
 class LLMError(Exception):
-    pass
+    def __init__(self, message: str, public: str | None = None):
+        super().__init__(message)
+        self.public = public
 
 
 class TransientLLMError(Exception):
-    def __init__(self, message: str, retry_after: float | None = None):
+    def __init__(
+        self, message: str, retry_after: float | None = None, public: str | None = None
+    ):
         super().__init__(message)
         self.retry_after = retry_after
+        self.public = public
 
 
 @dataclass
@@ -82,6 +100,16 @@ def strict_schema(model: type[BaseModel]) -> dict[str, Any]:
     return convert(root)
 
 
+def limit_message(response: httpx.Response) -> str:
+    """Name the limit from Groq's error, or from the wait if its wording ever changes."""
+    text = response.text.lower()
+    if "per day" in text or "(tpd)" in text or "(rpd)" in text:
+        return DAY_LIMIT_MESSAGE
+    if "per minute" in text or "(tpm)" in text or "(rpm)" in text:
+        return MINUTE_LIMIT_MESSAGE
+    return DAY_LIMIT_MESSAGE if (_retry_after(response) or 0) > MAX_RETRY_WAIT_SECONDS else MINUTE_LIMIT_MESSAGE
+
+
 def _retry_after(response: httpx.Response) -> float | None:
     try:
         return float(response.headers["retry-after"])
@@ -111,14 +139,19 @@ class GroqClient:
         await self.client.aclose()
 
     def build_payload(
-        self, system: str, prompt: str, schema: type[BaseModel], model: str | None = None
+        self,
+        system: str,
+        prompt: str,
+        schema: type[BaseModel],
+        model: str | None = None,
+        purpose: str = "",
     ) -> dict[str, Any]:
         # Groq's reasoning docs advise keeping all instructions in the user message.
         return {
             "model": model or self.model,
             "messages": [{"role": "user", "content": f"{system}\n\n{prompt}"}],
             "temperature": 0,
-            "max_completion_tokens": MAX_COMPLETION_TOKENS,
+            "max_completion_tokens": REPLY_TOKENS.get(purpose, MAX_COMPLETION_TOKENS),
             "reasoning_effort": "low",
             "include_reasoning": False,
             "response_format": {
@@ -136,19 +169,20 @@ class GroqClient:
     ) -> LLMResponse:
         try:
             response = await self.client.post(
-                API_URL, json=self.build_payload(system, prompt, schema)
+                API_URL, json=self.build_payload(system, prompt, schema, purpose=purpose)
             )
             # A long wait means this model's daily limit is used up, and limits are per model.
             wait = _retry_after(response) or 0
             if response.status_code == 429 and wait > MAX_RETRY_WAIT_SECONDS and self.fallback_model:
                 response = await self.client.post(
-                    API_URL, json=self.build_payload(system, prompt, schema, self.fallback_model)
+                    API_URL,
+                    json=self.build_payload(system, prompt, schema, self.fallback_model, purpose),
                 )
         except httpx.HTTPError as exc:
             raise TransientLLMError(type(exc).__name__) from exc
 
         if response.status_code == 429:
-            raise TransientLLMError("429", _retry_after(response))
+            raise TransientLLMError("429", _retry_after(response), limit_message(response))
         if response.status_code >= 500:
             raise TransientLLMError(str(response.status_code))
         if response.status_code == 400 and "failed_generation" in response.text:
@@ -229,7 +263,7 @@ class LLMService:
                 if wait is None:
                     wait = self.backoff_seconds * 2**attempt
                 if attempt == TRANSIENT_RETRIES or wait > MAX_RETRY_WAIT_SECONDS:
-                    raise LLMError("unavailable") from exc
+                    raise LLMError("unavailable", exc.public) from exc
                 await asyncio.sleep(wait)
                 continue
             except LLMError:

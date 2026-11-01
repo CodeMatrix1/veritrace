@@ -2,4 +2,4 @@
 const API_URL = "http://127.0.0.1:7860";
 const APP_URL = "http://localhost:3000";
 const MIN_CHARS = 3;
-const MAX_CHARS = 20000;
+const MAX_CHARS = 12000;

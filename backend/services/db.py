@@ -133,17 +133,6 @@ class Repository:
         status = await self.pool.fetchval("SELECT status FROM audits WHERE id = $1", audit_id)
         return status == "cancelled"
 
-    async def typical_seconds_per_claim(self) -> float | None:
-        """Return the median time per claim of recent audits that ran in full."""
-        return await self.pool.fetchval(
-            "SELECT percentile_cont(0.5) WITHIN GROUP "
-            "(ORDER BY extract(epoch FROM updated_at - created_at) / claims) FROM ("
-            "SELECT a.created_at, a.updated_at, count(c.id) AS claims FROM audits a "
-            "JOIN claims c ON c.audit_id = a.id AND c.investigated "
-            "WHERE a.status = 'completed' AND a.reused_from IS NULL "
-            "GROUP BY a.id ORDER BY a.created_at DESC LIMIT 20) recent"
-        )
-
     async def claim_texts(self, audit_id: str) -> list[str]:
         rows = await self.pool.fetch(
             "SELECT text FROM claims WHERE audit_id = $1 AND investigated ORDER BY position",
@@ -581,8 +570,8 @@ class Repository:
 
     async def count_chat_searches_today(self) -> int:
         return await self.pool.fetchval(
-            "SELECT count(*) FROM usage WHERE purpose = 'chat_search' "
-            "AND created_at >= date_trunc('day', now())"
+            "SELECT count(*) FROM usage WHERE purpose = 'chat_search' AND created_at >= "
+            "greatest(date_trunc('day', now()), (SELECT max(reset_at) FROM limit_resets))"
         )
 
     async def delete_expired(self) -> tuple[int, int]:

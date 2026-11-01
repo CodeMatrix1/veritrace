@@ -212,7 +212,14 @@ export default function AuditPage() {
                 <span className="w-32 shrink-0">
                   <VerdictBadge verdict={claim.verdict ?? "error"} />
                 </span>
-                <span className="min-w-0 break-words text-slate-200">{claim.text}</span>
+                <span className="min-w-0 break-words text-slate-200">
+                  {claim.text}
+                  {claim.confidence && (
+                    <span className="block text-xs text-slate-500">
+                      {claim.confidence[0].toUpperCase() + claim.confidence.slice(1)} confidence
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

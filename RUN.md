@@ -131,7 +131,8 @@ $env:TEST_DATABASE_URL = "postgresql://postgres:your_password@localhost:5432/ver
 | `WinError 1225`, connection refused | PostgreSQL isn't running | Start the PostgreSQL service |
 | Port 7860 or 3000 already in use | An old server is running | Stop it with the command above, changing the port if needed |
 | Database encoding error at startup | The database isn't UTF-8 | Recreate it as in step 2 |
-| "The AI service is busy or at its daily limit" | Groq's limit was reached | Wait, upgrade Groq, or check `GROQ_FALLBACK_MODEL` |
+| "The AI has reached its per-minute limit" | Too many requests at once | Wait a minute |
+| "The AI has reached its daily limit" | Both Groq models are used up | Wait, or upgrade Groq. These checks don't use your daily limit |
 | The website shows an old error or a missing field | The backend has old code | Restart the backend |
 | `Cannot find module` errors from `.next` | `npm run build` ran during `npm run dev` | Stop the dev server, delete `frontend/.next`, and start it again |
 | "Your file couldn't be accessed" in the extension | Chrome has an old version | Reload it on `chrome://extensions` |

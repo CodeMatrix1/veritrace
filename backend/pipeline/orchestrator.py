@@ -245,7 +245,9 @@ async def extract_claims(state: AuditState, deps: Deps) -> AuditState:
             state.text, datetime.now(timezone.utc).date(), deps.llm, state.audit_id
         )
     except LLMError as exc:
-        message = AI_UNAVAILABLE if str(exc) == "unavailable" else EXTRACTION_FAILURE_MESSAGE
+        message = EXTRACTION_FAILURE_MESSAGE
+        if str(exc) == "unavailable":
+            message = exc.public or AI_UNAVAILABLE
         raise PublicError(message) from exc
     state.claims = result.claims
     state.skipped = result.not_investigated
@@ -351,13 +353,13 @@ async def _gather_evidence(
         output = await analyze_evidence(
             cs.claim, passages, cs.documents, deps.llm, state.audit_id
         )
-    except LLMError:
+    except LLMError as exc:
         # A failed extra round must not discard evidence already gathered.
         if optional:
             cs.coverage_gaps.append("Some extra sources could not be reviewed in time")
             return
         cs.analysis_failed = True
-        cs.coverage_gaps.append(AI_UNAVAILABLE)
+        cs.coverage_gaps.append(exc.public or AI_UNAVAILABLE)
         return
     items = [
         validate_item(part, cs.claim, passages, cs.documents)

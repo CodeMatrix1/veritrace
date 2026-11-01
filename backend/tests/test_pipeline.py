@@ -713,7 +713,6 @@ async def test_finished_audit_cannot_be_cancelled(make_deps):
     audit_id, row = await start(deps)
     assert not await deps.repo.cancel_audit(audit_id)
     assert (await deps.repo.get_audit(audit_id))["status"] == row["status"] == "completed"
-    assert await deps.repo.typical_seconds_per_claim() is not None
     assert await deps.repo.claim_texts(audit_id)
 
 
@@ -1108,3 +1107,25 @@ async def test_search_again_skips_every_saved_step(make_deps):
     await run_audit(audit_id, deps)
     assert len(fake.requests) > searches
     assert deps.client.calls.count("claim_extraction") > extractions
+
+
+# Limits
+
+
+@pytest.mark.asyncio
+async def test_ai_limit_is_named_and_uses_no_audit(make_deps):
+    message = "The AI has reached its daily limit. Please try again in one day."
+    deps = make_deps(script(claim_extraction=LLMError("unavailable", message)), search(), pages())
+    _, row = await start(deps)
+    assert (row["status"], row["public_error"]) == ("failed", message)
+    assert await deps.repo.count_audits_today() == 0
+
+
+@pytest.mark.asyncio
+async def test_ai_limit_during_evidence_is_shown_and_uses_no_audit(make_deps):
+    message = "The AI has reached its per-minute limit. Please try again in one minute."
+    deps = make_deps(script(evidence_analysis=LLMError("unavailable", message)), search(), pages())
+    _, row = await start(deps)
+    assert row["overall_result"] == "assessment_incomplete"
+    assert message in row["report"]["claims"][0]["gaps"]
+    assert await deps.repo.count_audits_today() == 0

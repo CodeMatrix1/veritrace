@@ -1,23 +1,39 @@
 import asyncio
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 
 from components.chat import answer_question
-from config.settings import CHAT_SEARCH_DAILY_LIMIT
+from config.settings import CHAT_SEARCH_DAILY_LIMIT, PER_VISITOR_HOURLY_LIMIT
 from schemas.audit import AuditCreated, AuditInput, AuditResponse, ChatRequest, EventsResponse
 from services.llm import LLMError
 
 router = APIRouter(prefix="/api")
 budget_lock = asyncio.Lock()
-DEFAULT_SECONDS_PER_CLAIM = 60.0
-MIN_ESTIMATE_SECONDS = 20.0
-MAX_ESTIMATE_SECONDS = 600.0
+SECONDS_PER_CLAIM = 90.0
 
 
 class QuotaExceeded(Exception):
     pass
+
+
+visitors: dict[str, deque[float]] = defaultdict(deque)
+
+
+def check_visitor(request: Request) -> None:
+    """Stop one address using the whole shared limit. Hosts put the real address first."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    address = forwarded.split(",")[0].strip() or (request.client.host if request.client else "")
+    now = time.monotonic()
+    recent = visitors[address]
+    while recent and now - recent[0] > 3600:
+        recent.popleft()
+    if len(recent) >= PER_VISITOR_HOURLY_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+    recent.append(now)
 
 
 async def accept_audit(audit_input: AuditInput, deps) -> str:
@@ -48,6 +64,7 @@ def source_page(context: dict | None) -> dict | None:
 
 @router.post("/audits", status_code=202, response_model=AuditCreated)
 async def create_audit(audit_input: AuditInput, request: Request) -> AuditCreated:
+    check_visitor(request)
     deps = request.app.state.deps
     try:
         audit_id = await accept_audit(audit_input, deps)
@@ -65,10 +82,7 @@ async def get_audit(audit_id: UUID, request: Request) -> AuditResponse:
         raise HTTPException(status_code=404, detail="Audit not found.")
     finished = row["status"] in ("completed", "failed", "cancelled")
     end = row["updated_at"] if finished else datetime.now(timezone.utc)
-    per_claim = await repo.typical_seconds_per_claim() or DEFAULT_SECONDS_PER_CLAIM
     claims = await repo.claim_texts(str(audit_id))
-    # The count is known once claims are found, so the estimate starts at one claim.
-    estimate = per_claim * max(len(claims), 1)
     return AuditResponse(
         audit_id=str(row["id"]),
         status=row["status"],
@@ -78,7 +92,8 @@ async def get_audit(audit_id: UUID, request: Request) -> AuditResponse:
         source_page=source_page(row["input_context"]),
         created_at=row["created_at"],
         elapsed_seconds=(end - row["created_at"]).total_seconds(),
-        estimate_seconds=min(max(estimate, MIN_ESTIMATE_SECONDS), MAX_ESTIMATE_SECONDS),
+        # The count is known once claims are found, so the estimate starts at one claim.
+        estimate_seconds=SECONDS_PER_CLAIM * max(len(claims), 1),
         current_stage=row["current_stage"],
         overall_result=row["overall_result"],
         public_error=row["public_error"],
@@ -111,6 +126,7 @@ async def get_events(audit_id: UUID, request: Request, after_id: int = 0) -> Eve
 
 @router.post("/chat")
 async def chat(body: ChatRequest, request: Request) -> dict:
+    check_visitor(request)
     deps = request.app.state.deps
     if await deps.repo.count_audits_today() >= deps.settings.daily_audit_limit:
         raise HTTPException(status_code=429, detail="The daily audit limit has been reached.")
@@ -127,7 +143,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
     except LLMError as exc:
         raise HTTPException(
             status_code=503,
-            detail="The AI service is busy or at its daily limit. Please try again later.",
+            detail=exc.public or "The AI service is busy. Please try again later.",
         ) from exc
     if reply["found"]:
         await deps.repo.record_usage(None, "veritrace", "chat_question", "ok")

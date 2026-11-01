@@ -2,7 +2,7 @@
 
 Select text on a page, right-click it, and choose **Verify with Veritrace**. A side panel opens beside the page, and a notification confirms the check has started. The panel shows the exact text being verified, the claims found, the time left and a Cancel button. The answer then appears in the panel, with no need to open anything. The toolbar badge shows `...`, then `OK`, `NO` or `!`.
 
-**View all audits** and **Open full audit report** open the website in a new tab, with or without a check running. Recent audits on the Check tab open the same way. **Check again** appears after every check, and searches again instead of reusing a saved result. The **Ask** tab explains Indian schemes, policies, rights and public data. It tries official sources first, then a labelled web search, and it isn't a fact-check or legal advice. The **History** tab lists past audits, and any of them can be reopened. The check runs on the Veritrace server, so it continues if the panel closes.
+**Open Veritrace website** and **Open full audit report** open the website in a new tab, with or without a check running. Recent audits on the Check tab open the same way. **Check again** appears after every check, and searches again instead of reusing a saved result. The **Veritrace website** link opens the full site, which also explains government schemes, rights and rules. The **History** tab lists past audits, and any of them can be reopened. The check runs on the Veritrace server, so it continues if the panel closes.
 
 ## It needs the Veritrace server
 
@@ -28,6 +28,6 @@ Change `API_URL` and `APP_URL` in `config.js`. In `manifest.json`, change the ho
 - All of this is saved like any other audit and removed after 30 days, and anyone with the audit link can open it. Avoid using it on private pages, such as email.
 - It works the same way in a PDF.
 - History is kept in this browser only, for your latest 100 audits. The extension and the website share one list, which syncs when the website is open. Audits are removed from the server after 30 days.
-- The time shown is an estimate based on recent checks.
+- The time shown is an estimate of 1 min 30 sec per claim.
 - Sources must be in English.
 - Checks and Ask questions share the app's daily limit, and the number left is shown in the panel.

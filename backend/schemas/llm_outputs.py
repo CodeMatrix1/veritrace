@@ -88,4 +88,5 @@ class ChatSentence(BaseModel):
 
 class ChatOutput(BaseModel):
     in_scope: bool = True
+    complete: bool = True
     sentences: list[ChatSentence] = Field(default_factory=list)

@@ -49,6 +49,9 @@ def confidence_for(verdict: str, used: list[Evidence], data: VerdictInput) -> st
     if flags >= 2 or len(detail_gaps) >= 2:
         return "low"
 
+    disputed = verdict == "supported" and any(
+        e.stance == "contradicts" and e.validation_status == "valid" for e in data.evidence
+    )
     numbers_exact = not data.claim.numbers or verdict != "supported" or all(
         e.number_match == "exact" for e in used if e.stance == "supports"
     )
@@ -57,6 +60,7 @@ def confidence_for(verdict: str, used: list[Evidence], data: VerdictInput) -> st
         and has_primary(used, data.tiers)
         and numbers_exact
         and not flags
+        and not disputed
         and not data.skeptic_failed
         and not data.mandatory_search_failed
     ):
@@ -111,7 +115,9 @@ def decide(data: VerdictInput) -> ClaimVerdict:
     details_answered = all(
         any(d.id in e.addresses_detail_ids for e in valid) for d in data.claim.key_details
     )
-    if has_strong_support and details_answered and not contradicting:
+    # Official support outranks a lone unofficial source, which still stays visible.
+    outweighed = has_primary(supporting, data.tiers)
+    if has_strong_support and details_answered and (not contradicting or outweighed):
         return build("supported", "R4_SUPPORTED", supporting)
 
     reason = None

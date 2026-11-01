@@ -97,8 +97,7 @@ export default function AuditProgress({
       )}
 
       <p className="text-xs text-slate-500">
-        This estimate comes from recent checks. You can leave this page, and the check keeps
-        running.
+        Estimated at 1 min 30 sec per claim. You can leave this page, and the check keeps running.
       </p>
     </section>
   );

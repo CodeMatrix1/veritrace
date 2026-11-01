@@ -5,11 +5,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createAudit, getHealth } from "@/lib/api";
 import { rememberAudit } from "@/lib/history";
 
-const MAX_CHARS = 20000;
+const MAX_CHARS = 12000;
 
 export default function AuditForm() {
   const router = useRouter();
-  const [type, setType] = useState<"text" | "url">("text");
   const [content, setContent] = useState("");
   const [fresh, setFresh] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -33,7 +32,7 @@ export default function AuditForm() {
     setSubmitting(true);
     setError(null);
     try {
-      const audit = await createAudit(type, content.trim(), fresh);
+      const audit = await createAudit("text", content.trim(), fresh);
       rememberAudit({
         id: audit.audit_id,
         text: content.trim(),
@@ -49,43 +48,15 @@ export default function AuditForm() {
 
   return (
     <form onSubmit={submit} className="card space-y-4 p-5 sm:p-6">
-      <fieldset className="flex gap-2">
-        <legend className="sr-only">Input type</legend>
-        {(["text", "url"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={type === option}
-            onClick={() => setType(option)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              type === option ? "bg-cyan-300 text-slate-950" : "bg-white/10 text-slate-300"
-            }`}
-          >
-            {option === "text" ? "Text" : "URL"}
-          </button>
-        ))}
-      </fieldset>
-
-      {type === "text" ? (
-        <textarea
-          aria-label="Text to check"
-          value={content}
-          maxLength={MAX_CHARS}
-          onChange={(event) => setContent(event.target.value)}
-          rows={5}
-          placeholder="India's GDP grew by 8% in FY2024-25."
-          className="field"
-        />
-      ) : (
-        <input
-          aria-label="URL to check"
-          type="url"
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder="https://example.com/article"
-          className="field"
-        />
-      )}
+      <textarea
+        aria-label="Text to check"
+        value={content}
+        maxLength={MAX_CHARS}
+        onChange={(event) => setContent(event.target.value)}
+        rows={5}
+        placeholder="India's GDP grew by 8% in FY2024-25."
+        className="field"
+      />
 
       <label className="flex items-center gap-2 text-sm text-slate-300">
         <input

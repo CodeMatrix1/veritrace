@@ -3,9 +3,9 @@ const TOP_EVIDENCE = 3;
 const content = document.getElementById("content");
 const reportLink = document.getElementById("report");
 const limit = document.getElementById("limit");
+const linkNote = document.getElementById("link-note");
 const tabCheck = document.getElementById("tab-check");
 const tabHistory = document.getElementById("tab-history");
-const tabAsk = document.getElementById("tab-ask");
 
 // Keep this in step with frontend/lib/verdicts.ts.
 const VERDICTS = {
@@ -53,8 +53,6 @@ let timer = null;
 let ticker = null;
 let shownState = null;
 let tab = "check";
-let asking = false;
-const turns = [];
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -67,10 +65,11 @@ function show(...nodes) {
   content.replaceChildren(...nodes);
 }
 
-/** Link to an audit's report, or to the audit list when there isn't one. */
+/** Link to an audit's report, or to the website when there isn't one. */
 function setReportLink(id) {
-  reportLink.href = id ? `${APP_URL}/audit/${id}` : `${APP_URL}/audits`;
-  reportLink.textContent = id ? "Open full audit report" : "View all audits";
+  reportLink.href = id ? `${APP_URL}/audit/${id}` : `${APP_URL}/`;
+  reportLink.textContent = id ? "Open full audit report" : "Open Veritrace website";
+  linkNote.hidden = Boolean(id);
 }
 
 function badge(verdict) {
@@ -165,6 +164,7 @@ function showReport(audit, state) {
     report.claims.forEach((claim) => {
       const row = element("div", "", "card");
       row.append(badge(claim.verdict ?? "error"), element("p", claim.text));
+      if (claim.confidence) row.append(element("p", `${claim.confidence} confidence`, "muted"));
       nodes.push(row);
     });
   }
@@ -296,12 +296,20 @@ function historyItem(audit) {
   return row;
 }
 
+function feature(title, text) {
+  const card = element("div", "", "card feature");
+  card.append(element("strong", title), element("p", text));
+  return card;
+}
+
 async function showWelcome() {
   const { audits = [] } = await chrome.storage.local.get("audits");
   if (tab !== "check" || shownState) return;
   const nodes = [
-    element("h2", "Check any claim"),
-    element("p", "Select a statement on a page, right-click it, and choose Verify with Veritrace."),
+    element("h2", "Check claims with evidence"),
+    feature("Verify with Veritrace", "Select a statement on any page, right-click it, and choose Verify with Veritrace. The result appears here."),
+    feature("Check a claim", "On the website, paste any claim. Veritrace searches both sides and quotes the sources."),
+    feature("Ask about government information", "On the website, ask about schemes, rights, rules and public services."),
   ];
   if (audits.length > 0) {
     nodes.push(element("h3", "Recent audits"), ...audits.slice(0, RECENT_AUDITS).map(historyItem));
@@ -355,109 +363,12 @@ async function showRemaining() {
   }
 }
 
-function renderAsk() {
-  clearTimeout(timer);
-  clearInterval(ticker);
-  setReportLink(null);
-  const nodes = [];
-  if (turns.length === 0) {
-    nodes.push(
-      element("h2", "Understand government information"),
-      element("p", "Ask about Indian schemes, policies, rights and public data. Answers cite official sources. This is general information, not legal advice.", "muted"),
-    );
-  }
-  for (const turn of turns) {
-    nodes.push(element("p", turn.question, "question"));
-    const card = element("div", "", "card");
-    if (turn.error) {
-      card.append(element("p", turn.error, "error"));
-    } else if (!turn.reply) {
-      card.append(element("p", "Reading official sources...", "muted"));
-    } else {
-      const sections = turn.reply.sections ?? [];
-      if (sections.length === 0) card.append(element("p", turn.reply.answer));
-      sections.forEach((section) => {
-        if (sections.length > 1) card.append(element("h3", section.title));
-        section.sentences.forEach((sentence) => card.append(element("p", sentence)));
-      });
-      turn.reply.sources.slice(0, 3).forEach((source) => {
-        const url = safeUrl(source.url);
-        if (!url) return;
-        const link = element("a", source.publisher, "muted");
-        link.href = url;
-        link.target = "_blank";
-        link.rel = "noreferrer";
-        card.append(link, document.createTextNode("  "));
-      });
-      if (turn.reply.mode === "web") {
-        card.append(element("p", "From a web search, not official sources.", "error"));
-      }
-      if (turn.reply.found) {
-        card.append(element("p", "AI-written from the sources listed. Check them before relying on this.", "muted"));
-      }
-    }
-    nodes.push(card);
-  }
-  const form = element("form");
-  const input = element("input");
-  input.maxLength = 500;
-  input.placeholder = "Ask a question";
-  input.setAttribute("aria-label", "Your question");
-  const send = element("button", "Ask");
-  send.type = "submit";
-  send.disabled = asking;
-  form.append(input, send);
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    ask(input.value.trim());
-  });
-  nodes.push(form);
-  show(...nodes);
-  content.scrollTop = content.scrollHeight;
-  input.focus();
-}
-
-async function ask(question) {
-  if (question.length < 3 || asking) return;
-  asking = true;
-  const history = turns
-    .filter((item) => item.reply?.found)
-    .slice(-3)
-    .map((item) => ({
-      question: item.question,
-      answer: item.reply.answer.slice(0, 2000),
-      source_urls: item.reply.sources.map((source) => source.url).slice(0, 8),
-    }));
-  const turn = { question, reply: null, error: null };
-  turns.push(turn);
-  renderAsk();
-  try {
-    const response = await fetch(`${API_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, history }),
-      signal: AbortSignal.timeout(60000),
-    });
-    const body = await response.json().catch(() => null);
-    if (response.ok && body) turn.reply = body;
-    else turn.error = typeof body?.detail === "string" ? body.detail : "Please try again.";
-  } catch {
-    turn.error = "The verification service could not be reached.";
-  }
-  asking = false;
-  showRemaining();
-  if (tab === "ask") renderAsk();
-}
-
 function setTab(next) {
   tab = next;
   tabCheck.classList.toggle("active", next === "check");
   tabHistory.classList.toggle("active", next === "history");
-  tabAsk.classList.toggle("active", next === "ask");
   if (next === "history") {
     renderHistory();
-  } else if (next === "ask") {
-    renderAsk();
   } else {
     render(shownState);
   }
@@ -465,7 +376,6 @@ function setTab(next) {
 
 tabCheck.addEventListener("click", () => setTab("check"));
 tabHistory.addEventListener("click", () => setTab("history"));
-tabAsk.addEventListener("click", () => setTab("ask"));
 
 showRemaining();
 chrome.storage.session.get("current").then(({ current }) => render(current ?? null));
@@ -479,7 +389,6 @@ chrome.storage.onChanged.addListener((changes, area) => {
       tab = "check";
       tabCheck.classList.add("active");
       tabHistory.classList.remove("active");
-      tabAsk.classList.remove("active");
     }
     render(next);
   }

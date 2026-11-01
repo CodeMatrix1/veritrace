@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 
 from components.number_compare import parse_numbers
-from config.settings import MAX_CLAIMS
+from config.settings import MAX_CLAIMS, MAX_INPUT_CHARS
 from prompts import EXTRACTION_PROMPT, EXTRACTION_PROMPT_VERSION
 from schemas.claim import AtomicClaim, ExtractionResult, KeyDetail
 from schemas.llm_outputs import ExtractedClaim, ExtractionOutput
@@ -92,6 +92,8 @@ def _build_claim(position: int, item: ExtractedClaim) -> AtomicClaim:
 async def extract_claims(
     text: str, reference_date: date, llm: LLMService, audit_id: str
 ) -> ExtractionResult:
+    # Long pages exceed the model's per-minute limit, and the opening usually holds the claims.
+    text = text[:MAX_INPUT_CHARS]
     prompt = EXTRACTION_PROMPT.format(reference_date=reference_date.isoformat(), feedback="", text=text)
     output = await llm.generate_structured(
         prompt, ExtractionOutput, "claim_extraction", audit_id, EXTRACTION_PROMPT_VERSION

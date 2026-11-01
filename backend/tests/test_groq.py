@@ -197,3 +197,29 @@ async def test_used_up_model_falls_back_but_a_short_wait_does_not():
         await client.generate("s", "p", SummaryOutput, "summary")
     assert seen == ["big"]
     await client.close()
+
+
+def test_short_replies_reserve_fewer_tokens():
+    from schemas.llm_outputs import SummaryOutput
+    from services.llm import MAX_COMPLETION_TOKENS, GroqClient
+
+    client = GroqClient("key", "model")
+    assert client.build_payload("s", "p", SummaryOutput, purpose="chat")["max_completion_tokens"] == 1500
+    other = client.build_payload("s", "p", SummaryOutput, purpose="evidence_analysis")
+    assert other["max_completion_tokens"] == MAX_COMPLETION_TOKENS
+
+
+@pytest.mark.parametrize("error,wait,expected", [
+    ("Rate limit reached on tokens per day (TPD): Limit 200000", "900", "one day"),
+    ("Rate limit reached on tokens per minute (TPM): Limit 8000", "4", "one minute"),
+    ("Rate limit reached on requests per minute (RPM)", "2", "one minute"),
+    ("Something new", "900", "one day"),
+    ("Something new", "5", "one minute"),
+])
+def test_limit_messages_name_the_right_wait(error, wait, expected):
+    import httpx
+
+    from services.llm import limit_message
+
+    response = httpx.Response(429, headers={"retry-after": wait}, text=error)
+    assert expected in limit_message(response)

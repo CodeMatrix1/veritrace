@@ -164,7 +164,7 @@ GAP_DESCRIPTIONS = {
 
 # Evidence analysis
 
-EVIDENCE_PROMPT_VERSION = "3"
+EVIDENCE_PROMPT_VERSION = "4"
 EVIDENCE_PROMPT = """Assess how each source passage relates to the claim.
 
 Claim:
@@ -191,6 +191,7 @@ For each useful point, return one item with:
   calculate or round.
 
 Each item has exactly one stance. If sentences point in different directions, return separate items.
+A source saying something is likely, proposed or planned doesn't establish that it happened.
 
 Examples for the invented claim "Riverton's adult literacy rate was 90% in 2020":
 - "Nine in ten Riverton adults could read in 2020." supports, because different words are fine
@@ -256,7 +257,7 @@ New question: {question}
 </untrusted_input>"""
 
 
-CHAT_PROMPT_VERSION = "6"
+CHAT_PROMPT_VERSION = "8"
 CHAT_PROMPT = """You explain Indian government schemes, policies, notifications, public services,
 citizens' rights and official statistics in plain language. Answer using only the passages below.
 
@@ -267,8 +268,17 @@ Today is {today}. Saved pages can be old. Check every date against today:
 - For other answers that could have changed since, say when the information dates from.
 
 Rules:
-- Use short, plain sentences. List the labels each sentence relies on, and never put a label in the
-  sentence text.
+- Write for a citizen with no legal or government background. Use short, friendly, plain sentences.
+- Explain any official term in a few words the first time you use it, such as "Public Information
+  Officer (the official who handles these requests)".
+- Start with the direct answer. Use "you" where it reads naturally.
+- Never mention "passages" or "the text". Say "official sources" if you need to refer to them.
+- Prefer national rules. If a source covers only one state, say which state it applies to.
+- Set complete to false unless your sentences directly answer what was asked. A general description
+  of the topic isn't an answer, and neither is saying that a detail, such as a fee, isn't stated.
+- If the passages only partly answer, give what they do say, rather than returning no sentences.
+- If sources differ, use the most recent one, and leave out laws or rules that have been replaced.
+- List the labels each sentence relies on, and never put a label in the sentence text.
 - Do not use outside knowledge, calculate or guess. If a figure is for a particular period, say which.
 - Give each sentence one section: Answer, Who qualifies, Benefits, Documents needed, How to apply,
   Key dates, What changed, Who is affected or Limits. Most sentences belong in Answer. Use another

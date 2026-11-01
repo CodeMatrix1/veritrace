@@ -27,6 +27,7 @@ MAX_PAGE_CHARS = 100_000
 MIN_PAGE_CHARS = 300
 LIVE_RESULTS = 5
 NOT_FOUND = "I couldn't find a reliable answer to this."
+SEARCH_PAUSED = "I couldn't find this in saved pages, and live search is paused for today."
 DOCUMENT_NOT_READ = "I couldn't read that page. Try another official link."
 OFFICIAL_SEARCH_DOMAINS = ["gov.in", "nic.in", "rbi.org.in", "who.int"]
 EXTRA_OFFICIAL = ("rbi.org.in",)
@@ -109,10 +110,24 @@ def split_chunks(text: str) -> list[str]:
     return chunks
 
 
-def select_passages(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep the best passages, without letting one page fill the answer."""
+def is_state_source(domain: str) -> bool:
+    """Tell state sites such as sic.assam.gov.in from central ones such as cic.gov.in."""
+    match = re.fullmatch(r"(.+)\.(?:gov|nic)\.in", domain)
+    return bool(match) and "." in match.group(1).removeprefix("www.")
+
+
+def state_named(domain: str, question: str) -> bool:
+    return domain.split(".")[-3].lower() in question.lower()
+
+
+def select_passages(rows: list[dict[str, Any]], question: str = "") -> list[dict[str, Any]]:
+    """Keep the best passages, preferring national sources unless a state is asked about."""
     per_page: dict[str, int] = {}
     selected = []
+    rows = sorted(
+        rows,
+        key=lambda r: is_state_source(r.get("domain", "")) and not state_named(r["domain"], question),
+    )
     for row in rows:
         if per_page.get(row["url"], 0) < MAX_PASSAGES_PER_PAGE:
             per_page[row["url"]] = per_page.get(row["url"], 0) + 1
@@ -136,7 +151,9 @@ async def search_sources(
 ) -> list[dict[str, Any]]:
     """Search live, and save official pages so the next answer is faster."""
     request = SearchRequest(
-        claim_id="", purpose="support", scope="official" if official else "open", query=question,
+        claim_id="", purpose="support", scope="official" if official else "open",
+        # Without this, an open search leans towards US pages.
+        query=question if official or "india" in question.lower() else f"{question} India",
         include_domains=OFFICIAL_SEARCH_DOMAINS if official else [],
         exclude_domains=[] if official else blocked,
         max_results=LIVE_RESULTS,
@@ -182,7 +199,7 @@ async def compose(
     question: str, rows: list[dict[str, Any]], llm: LLMService, repo_pages: int, mode: str
 ) -> dict[str, Any] | None:
     """Answer from passages, keeping only sentences that a cited passage backs up."""
-    passages = select_passages(rows)
+    passages = select_passages(rows, question)
     if not passages:
         return None
     labels = {f"S{i}": row for i, row in enumerate(passages, start=1)}
@@ -206,6 +223,10 @@ async def compose(
     for sentence in output.sentences:
         rows_cited = [labels[label] for label in sentence.labels if label in labels]
         text = BRACKET_LABEL.sub("", sentence.text).strip()
+        text = re.sub(r"\b[Tt]he passages?\b", "official sources", text)
+        # Only the authority can decide eligibility, whatever the model wrote.
+        text = re.sub(r"\b([Yy]ou) (qualify|are eligible)\b", r"\1 may \2", text)
+        text = re.sub(r"\b([Yy]ou) may are eligible\b", r"\1 may be eligible", text)
         # A figure must appear in the passages this sentence cites, or in the question.
         if rows_cited and sentence_is_grounded(text, [r["text"] for r in rows_cited], question):
             sections.setdefault(choose_section(sentence.section, question), []).append(text)
@@ -217,6 +238,7 @@ async def compose(
     ]
     return {
         "found": True,
+        "complete": output.complete,
         "mode": mode,
         "answer": " ".join(s for section in ordered for s in section["sentences"]),
         "sections": ordered,
@@ -234,6 +256,13 @@ async def compose(
         "pages": repo_pages,
         "understood_as": question,
     }
+
+
+def mix(first: list[dict[str, Any]], second: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Take from both lists in turn, so neither crowds out the other."""
+    mixed = [row for pair in zip(first, second) for row in pair]
+    shorter = min(len(first), len(second))
+    return [*mixed, *first[shorter:], *second[shorter:]]
 
 
 def nothing(message: str, pages: int) -> dict[str, Any]:
@@ -262,14 +291,13 @@ async def answer_question(
         reply = await compose(question, rows, llm, pages, "document")
         return reply or nothing("That page doesn't answer this question.", pages)
 
-    async def saved() -> dict[str, Any] | None:
-        return await compose(question, await repo.search_knowledge(question), llm, pages, "saved")
-
-    async def live() -> dict[str, Any] | None:
-        if search is None:
-            return None
-        rows = await search_sources(question, repo, search, blocked or [], official=True)
-        return await compose(question, rows, llm, pages, "live")
+    async def official() -> dict[str, Any] | None:
+        """Search saved and live official pages together, as either alone can be thin."""
+        live = await search_sources(question, repo, search, blocked or [], True) if search else []
+        saved = await repo.search_knowledge(question)
+        # Saved pages can be out of date, so a current question keeps them only as a last resort.
+        rows = live if live and CURRENT_WORDS.search(question) else mix(live, saved)
+        return await compose(question, rows, llm, pages, "live" if live else "saved")
 
     async def web() -> dict[str, Any] | None:
         if search is None:
@@ -284,10 +312,12 @@ async def answer_question(
         rows = await repo.knowledge_passages(question, urls)
         return await compose(question, rows, llm, pages, "saved")
 
-    steps = (live, saved, web) if CURRENT_WORDS.search(question) else (saved, live, web)
-    steps = (earlier_sources, *steps)
+    steps = (earlier_sources, official, web)
+    # A partial answer is kept in case nothing later does better.
+    partial = None
     for step in steps:
         reply = await step()
-        if reply:
+        if reply and reply["complete"]:
             return reply
-    return nothing(NOT_FOUND, pages)
+        partial = partial or reply
+    return partial or nothing(SEARCH_PAUSED if search is None else NOT_FOUND, pages)
